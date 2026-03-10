@@ -1,0 +1,47 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - APP_NAME=pet-log-api
+      - APP_ENV=development
+      - APP_PORT=8080
+      - APP_DEBUG=true
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=pet_log
+      - DB_SSL_MODE=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pet-log-network
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=pet_log
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pet-log-network
+
+volumes:
+  postgres_data:
+
+networks:
+  pet-log-network:
+    driver: bridge
