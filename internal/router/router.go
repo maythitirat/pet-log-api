@@ -22,6 +22,10 @@ func NewRouter(h *handler.Handlers, cfg *config.Config) *fiber.App {
 	app.Get("/health", h.Health.Health)
 	app.Get("/ready", h.Health.Ready)
 
+	// Authentication routes
+	app.Get("/loginLine", h.LoginLine.LoginLine) // Get /loginLine
+	app.Get("/callback", h.LoginLine.Callback)   // Get /callback
+
 	// API v1 routes
 	api := app.Group("/api/v1")
 

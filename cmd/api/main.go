@@ -41,7 +41,7 @@ func main() {
 	// Initialize layers (Dependency Injection)
 	repos := repository.NewRepositories(db)
 	services := service.NewServices(repos)
-	handlers := handler.NewHandlers(services)
+	handlers := handler.NewHandlers(services, cfg)
 
 	// Setup router
 	r := router.NewRouter(handlers, cfg)

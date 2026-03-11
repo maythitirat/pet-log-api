@@ -12,6 +12,7 @@ import (
 type Config struct {
 	App      AppConfig
 	Database DatabaseConfig
+	Line     LineConfig
 }
 
 // AppConfig holds application-specific configuration
@@ -32,10 +33,22 @@ type DatabaseConfig struct {
 	SSLMode  string
 }
 
+type LineConfig struct {
+	ChannelID     string
+	ChannelSecret string
+	RedirectURI   string
+	State         string
+}
+
 // Load reads configuration from environment variables
 func Load() (*Config, error) {
 	// Load .env file if exists (for local development)
-	_ = godotenv.Load()
+	err := godotenv.Load("../../.env")
+	if err != nil {
+		fmt.Println("❌ .env not found")
+	} else {
+		fmt.Println("✅ .env loaded")
+	}
 
 	cfg := &Config{
 		App: AppConfig{
@@ -51,6 +64,12 @@ func Load() (*Config, error) {
 			Password: getEnv("DB_PASSWORD", "postgres"),
 			DBName:   getEnv("DB_NAME", "pet_log"),
 			SSLMode:  getEnv("DB_SSL_MODE", "disable"),
+		},
+		Line: LineConfig{
+			ChannelID:     getEnv("LINE_CHANNEL_ID", ""),
+			ChannelSecret: getEnv("LINE_CHANNEL_SECRET", ""),
+			RedirectURI:   getEnv("LINE_REDIRECT_URI", ""),
+			State:         getEnv("LINE_STATE", "12345"),
 		},
 	}
 

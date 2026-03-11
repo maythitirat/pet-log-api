@@ -338,3 +338,7 @@ If you have questions or need help, please:
 
 Happy coding! 🎉
 
+
+## Environment ##
+Copy .env.example file and rename to .env
+if you don't, you can't be to login line.
