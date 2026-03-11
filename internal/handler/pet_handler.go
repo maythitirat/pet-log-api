@@ -1,15 +1,12 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
-	"net/http"
 	"strconv"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/gofiber/fiber/v3"
 	"github.com/maythitirat/pet-log-api/internal/model"
 	"github.com/maythitirat/pet-log-api/internal/service"
-	"github.com/maythitirat/pet-log-api/pkg/response"
 	"github.com/maythitirat/pet-log-api/pkg/validator"
 )
 
@@ -34,26 +31,27 @@ func NewPetHandler(svc service.PetService) *PetHandler {
 // @Failure 400 {object} response.ErrorResponse
 // @Failure 500 {object} response.ErrorResponse
 // @Router /pets [post]
-func (h *PetHandler) Create(w http.ResponseWriter, r *http.Request) {
+func (h *PetHandler) Create(c fiber.Ctx) error {
 	var req model.CreatePetRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid request body")
-		return
+	if err := c.Bind().Body(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
 	// Validate request
-	if errors := validator.Validate(req); len(errors) > 0 {
-		response.ValidationError(w, errors)
-		return
+	if validationErrors := validator.Validate(req); len(validationErrors) > 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Validation Error",
+			"message": "One or more fields failed validation",
+			"details": validationErrors,
+		})
 	}
 
-	pet, err := h.service.Create(r.Context(), &req)
+	pet, err := h.service.Create(c.Context(), &req)
 	if err != nil {
-		response.Error(w, http.StatusInternalServerError, "Failed to create pet")
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create pet"})
 	}
 
-	response.JSON(w, http.StatusCreated, pet)
+	return c.Status(fiber.StatusCreated).JSON(pet)
 }
 
 // GetByID handles GET /pets/{id}
@@ -66,24 +64,21 @@ func (h *PetHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} response.ErrorResponse
 // @Failure 500 {object} response.ErrorResponse
 // @Router /pets/{id} [get]
-func (h *PetHandler) GetByID(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+func (h *PetHandler) GetByID(c fiber.Ctx) error {
+	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
 	if err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid pet ID")
-		return
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid pet ID"})
 	}
 
-	pet, err := h.service.GetByID(r.Context(), id)
+	pet, err := h.service.GetByID(c.Context(), id)
 	if err != nil {
 		if errors.Is(err, service.ErrPetNotFound) {
-			response.Error(w, http.StatusNotFound, "Pet not found")
-			return
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Pet not found"})
 		}
-		response.Error(w, http.StatusInternalServerError, "Failed to get pet")
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get pet"})
 	}
 
-	response.JSON(w, http.StatusOK, pet)
+	return c.JSON(pet)
 }
 
 // GetAll handles GET /pets
@@ -96,18 +91,17 @@ func (h *PetHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {array} model.PetResponse
 // @Failure 500 {object} response.ErrorResponse
 // @Router /pets [get]
-func (h *PetHandler) GetAll(w http.ResponseWriter, r *http.Request) {
+func (h *PetHandler) GetAll(c fiber.Ctx) error {
 	// Parse pagination parameters
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	pageSize, _ := strconv.Atoi(r.URL.Query().Get("page_size"))
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	pageSize, _ := strconv.Atoi(c.Query("page_size", "20"))
 
-	pets, err := h.service.GetAll(r.Context(), page, pageSize)
+	pets, err := h.service.GetAll(c.Context(), page, pageSize)
 	if err != nil {
-		response.Error(w, http.StatusInternalServerError, "Failed to get pets")
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get pets"})
 	}
 
-	response.JSON(w, http.StatusOK, pets)
+	return c.JSON(pets)
 }
 
 // GetByOwnerID handles GET /users/{userId}/pets
@@ -119,20 +113,18 @@ func (h *PetHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {array} model.PetResponse
 // @Failure 500 {object} response.ErrorResponse
 // @Router /users/{userId}/pets [get]
-func (h *PetHandler) GetByOwnerID(w http.ResponseWriter, r *http.Request) {
-	ownerID, err := strconv.ParseInt(chi.URLParam(r, "userId"), 10, 64)
+func (h *PetHandler) GetByOwnerID(c fiber.Ctx) error {
+	ownerID, err := strconv.ParseInt(c.Params("userId"), 10, 64)
 	if err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid owner ID")
-		return
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid owner ID"})
 	}
 
-	pets, err := h.service.GetByOwnerID(r.Context(), ownerID)
+	pets, err := h.service.GetByOwnerID(c.Context(), ownerID)
 	if err != nil {
-		response.Error(w, http.StatusInternalServerError, "Failed to get pets")
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get pets"})
 	}
 
-	response.JSON(w, http.StatusOK, pets)
+	return c.JSON(pets)
 }
 
 // Update handles PUT /pets/{id}
@@ -148,36 +140,35 @@ func (h *PetHandler) GetByOwnerID(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} response.ErrorResponse
 // @Failure 500 {object} response.ErrorResponse
 // @Router /pets/{id} [put]
-func (h *PetHandler) Update(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+func (h *PetHandler) Update(c fiber.Ctx) error {
+	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
 	if err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid pet ID")
-		return
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid pet ID"})
 	}
 
 	var req model.UpdatePetRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid request body")
-		return
+	if err := c.Bind().Body(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
 	// Validate request
-	if errors := validator.Validate(req); len(errors) > 0 {
-		response.ValidationError(w, errors)
-		return
+	if validationErrors := validator.Validate(req); len(validationErrors) > 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Validation Error",
+			"message": "One or more fields failed validation",
+			"details": validationErrors,
+		})
 	}
 
-	pet, err := h.service.Update(r.Context(), id, &req)
+	pet, err := h.service.Update(c.Context(), id, &req)
 	if err != nil {
 		if errors.Is(err, service.ErrPetNotFound) {
-			response.Error(w, http.StatusNotFound, "Pet not found")
-			return
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Pet not found"})
 		}
-		response.Error(w, http.StatusInternalServerError, "Failed to update pet")
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update pet"})
 	}
 
-	response.JSON(w, http.StatusOK, pet)
+	return c.JSON(pet)
 }
 
 // Delete handles DELETE /pets/{id}
@@ -190,22 +181,19 @@ func (h *PetHandler) Update(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} response.ErrorResponse
 // @Failure 500 {object} response.ErrorResponse
 // @Router /pets/{id} [delete]
-func (h *PetHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+func (h *PetHandler) Delete(c fiber.Ctx) error {
+	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
 	if err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid pet ID")
-		return
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid pet ID"})
 	}
 
-	err = h.service.Delete(r.Context(), id)
+	err = h.service.Delete(c.Context(), id)
 	if err != nil {
 		if errors.Is(err, service.ErrPetNotFound) {
-			response.Error(w, http.StatusNotFound, "Pet not found")
-			return
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Pet not found"})
 		}
-		response.Error(w, http.StatusInternalServerError, "Failed to delete pet")
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete pet"})
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	return c.SendStatus(fiber.StatusNoContent)
 }

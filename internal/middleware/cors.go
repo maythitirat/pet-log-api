@@ -1,24 +1,21 @@
 package middleware
 
-import (
-	"net/http"
-)
+import "github.com/gofiber/fiber/v3"
 
-// CORS is a middleware that handles Cross-Origin Resource Sharing
-func CORS(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// CORS returns a middleware that handles Cross-Origin Resource Sharing
+func CORS() fiber.Handler {
+	return func(c fiber.Ctx) error {
 		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
-		w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-Request-ID")
-		w.Header().Set("Access-Control-Max-Age", "86400")
+		c.Set("Access-Control-Allow-Origin", "*")
+		c.Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+		c.Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-Request-ID")
+		c.Set("Access-Control-Max-Age", "86400")
 
 		// Handle preflight requests
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
+		if c.Method() == fiber.MethodOptions {
+			return c.SendStatus(fiber.StatusOK)
 		}
 
-		next.ServeHTTP(w, r)
-	})
+		return c.Next()
+	}
 }

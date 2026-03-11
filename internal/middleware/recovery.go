@@ -1,30 +1,31 @@
 package middleware
 
 import (
-	"net/http"
+	"fmt"
 	"runtime/debug"
 
+	"github.com/gofiber/fiber/v3"
 	"github.com/rs/zerolog/log"
 )
 
-// Recoverer is a middleware that recovers from panics
-func Recoverer(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// Recoverer returns a middleware that recovers from panics
+func Recoverer() fiber.Handler {
+	return func(c fiber.Ctx) error {
 		defer func() {
 			if rvr := recover(); rvr != nil {
 				// Log the panic with stack trace
 				log.Error().
 					Interface("panic", rvr).
 					Str("stack", string(debug.Stack())).
-					Str("method", r.Method).
-					Str("path", r.URL.Path).
+					Str("method", c.Method()).
+					Str("path", c.Path()).
 					Msg("panic recovered")
 
 				// Return 500 Internal Server Error
-				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				_ = c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Internal Server Error: %v", rvr))
 			}
 		}()
 
-		next.ServeHTTP(w, r)
-	})
+		return c.Next()
+	}
 }

@@ -1,10 +1,9 @@
 package handler
 
 import (
-	"net/http"
 	"time"
 
-	"github.com/maythitirat/pet-log-api/pkg/response"
+	"github.com/gofiber/fiber/v3"
 )
 
 // HealthHandler handles health check endpoints
@@ -21,10 +20,10 @@ func NewHealthHandler() *HealthHandler {
 
 // HealthResponse represents the health check response
 type HealthResponse struct {
-	Status    string  `json:"status"`
-	Timestamp string  `json:"timestamp"`
-	Uptime    string  `json:"uptime"`
-	Version   string  `json:"version"`
+	Status    string `json:"status"`
+	Timestamp string `json:"timestamp"`
+	Uptime    string `json:"uptime"`
+	Version   string `json:"version"`
 }
 
 // Health returns the health status of the API
@@ -34,7 +33,7 @@ type HealthResponse struct {
 // @Produce json
 // @Success 200 {object} HealthResponse
 // @Router /health [get]
-func (h *HealthHandler) Health(w http.ResponseWriter, r *http.Request) {
+func (h *HealthHandler) Health(c fiber.Ctx) error {
 	resp := HealthResponse{
 		Status:    "ok",
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
@@ -42,7 +41,7 @@ func (h *HealthHandler) Health(w http.ResponseWriter, r *http.Request) {
 		Version:   "1.0.0",
 	}
 
-	response.JSON(w, http.StatusOK, resp)
+	return c.JSON(resp)
 }
 
 // Ready returns whether the API is ready to accept requests
@@ -52,8 +51,8 @@ func (h *HealthHandler) Health(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Success 200 {object} map[string]string
 // @Router /ready [get]
-func (h *HealthHandler) Ready(w http.ResponseWriter, r *http.Request) {
-	response.JSON(w, http.StatusOK, map[string]string{
+func (h *HealthHandler) Ready(c fiber.Ctx) error {
+	return c.JSON(map[string]string{
 		"status": "ready",
 	})
 }

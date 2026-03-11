@@ -1,15 +1,12 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
-	"net/http"
 	"strconv"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/gofiber/fiber/v3"
 	"github.com/maythitirat/pet-log-api/internal/model"
 	"github.com/maythitirat/pet-log-api/internal/service"
-	"github.com/maythitirat/pet-log-api/pkg/response"
 	"github.com/maythitirat/pet-log-api/pkg/validator"
 )
 
@@ -35,30 +32,30 @@ func NewUserHandler(svc service.UserService) *UserHandler {
 // @Failure 409 {object} response.ErrorResponse
 // @Failure 500 {object} response.ErrorResponse
 // @Router /users [post]
-func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
+func (h *UserHandler) Create(c fiber.Ctx) error {
 	var req model.CreateUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid request body")
-		return
+	if err := c.Bind().Body(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
 	// Validate request
-	if errors := validator.Validate(req); len(errors) > 0 {
-		response.ValidationError(w, errors)
-		return
+	if validationErrors := validator.Validate(req); len(validationErrors) > 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Validation Error",
+			"message": "One or more fields failed validation",
+			"details": validationErrors,
+		})
 	}
 
-	user, err := h.service.Create(r.Context(), &req)
+	user, err := h.service.Create(c.Context(), &req)
 	if err != nil {
 		if errors.Is(err, service.ErrEmailAlreadyExists) {
-			response.Error(w, http.StatusConflict, "Email already exists")
-			return
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Email already exists"})
 		}
-		response.Error(w, http.StatusInternalServerError, "Failed to create user")
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create user"})
 	}
 
-	response.JSON(w, http.StatusCreated, user)
+	return c.Status(fiber.StatusCreated).JSON(user)
 }
 
 // GetByID handles GET /users/{id}
@@ -71,24 +68,21 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} response.ErrorResponse
 // @Failure 500 {object} response.ErrorResponse
 // @Router /users/{id} [get]
-func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+func (h *UserHandler) GetByID(c fiber.Ctx) error {
+	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
 	if err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid user ID")
-		return
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user ID"})
 	}
 
-	user, err := h.service.GetByID(r.Context(), id)
+	user, err := h.service.GetByID(c.Context(), id)
 	if err != nil {
 		if errors.Is(err, service.ErrUserNotFound) {
-			response.Error(w, http.StatusNotFound, "User not found")
-			return
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
 		}
-		response.Error(w, http.StatusInternalServerError, "Failed to get user")
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to get user"})
 	}
 
-	response.JSON(w, http.StatusOK, user)
+	return c.JSON(user)
 }
 
 // Update handles PUT /users/{id}
@@ -105,40 +99,38 @@ func (h *UserHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // @Failure 409 {object} response.ErrorResponse
 // @Failure 500 {object} response.ErrorResponse
 // @Router /users/{id} [put]
-func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+func (h *UserHandler) Update(c fiber.Ctx) error {
+	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
 	if err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid user ID")
-		return
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user ID"})
 	}
 
 	var req model.UpdateUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid request body")
-		return
+	if err := c.Bind().Body(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
 	// Validate request
-	if errors := validator.Validate(req); len(errors) > 0 {
-		response.ValidationError(w, errors)
-		return
+	if validationErrors := validator.Validate(req); len(validationErrors) > 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Validation Error",
+			"message": "One or more fields failed validation",
+			"details": validationErrors,
+		})
 	}
 
-	user, err := h.service.Update(r.Context(), id, &req)
+	user, err := h.service.Update(c.Context(), id, &req)
 	if err != nil {
 		if errors.Is(err, service.ErrUserNotFound) {
-			response.Error(w, http.StatusNotFound, "User not found")
-			return
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
 		}
 		if errors.Is(err, service.ErrEmailAlreadyExists) {
-			response.Error(w, http.StatusConflict, "Email already exists")
-			return
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Email already exists"})
 		}
-		response.Error(w, http.StatusInternalServerError, "Failed to update user")
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update user"})
 	}
 
-	response.JSON(w, http.StatusOK, user)
+	return c.JSON(user)
 }
 
 // Delete handles DELETE /users/{id}
@@ -151,22 +143,19 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} response.ErrorResponse
 // @Failure 500 {object} response.ErrorResponse
 // @Router /users/{id} [delete]
-func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+func (h *UserHandler) Delete(c fiber.Ctx) error {
+	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
 	if err != nil {
-		response.Error(w, http.StatusBadRequest, "Invalid user ID")
-		return
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user ID"})
 	}
 
-	err = h.service.Delete(r.Context(), id)
+	err = h.service.Delete(c.Context(), id)
 	if err != nil {
 		if errors.Is(err, service.ErrUserNotFound) {
-			response.Error(w, http.StatusNotFound, "User not found")
-			return
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
 		}
-		response.Error(w, http.StatusInternalServerError, "Failed to delete user")
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete user"})
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	return c.SendStatus(fiber.StatusNoContent)
 }
